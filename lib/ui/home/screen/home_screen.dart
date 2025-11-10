@@ -34,19 +34,19 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      // ✅ خلى الخلفية شفافة
+      backgroundColor: Colors.transparent,
+      extendBody: true, // ✅ علشان الخلفية تمتد تحت الـ navigation bar
       body: tabs[selectedIndex],
 
-      // ✅ شيلنا الـ FloatingActionButton
-
       bottomNavigationBar: Container(
-        decoration: const BoxDecoration(
-          color: Color(0xFF6EC6FF),
-          borderRadius: BorderRadius.only(
+        decoration: BoxDecoration(
+          color: const Color(0xFF6EC6FF).withOpacity(0.9), // ✅ شوية شفافية علشان الخلفية تبان وراه
+          borderRadius: const BorderRadius.only(
             topLeft: Radius.circular(25),
             topRight: Radius.circular(25),
           ),
-          boxShadow: [
+          boxShadow: const [
             BoxShadow(
               color: Colors.black26,
               blurRadius: 8,
