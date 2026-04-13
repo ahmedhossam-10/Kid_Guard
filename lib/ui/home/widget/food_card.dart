@@ -2,62 +2,55 @@ import 'package:flutter/material.dart';
 
 class FoodCard extends StatelessWidget {
   final String title;
-  final String imageAsset; // placeholder الآن، بعدين هتتبعت من API
-  final VoidCallback? onTap;
+  final String imageAsset;
+  final VoidCallback onTap;
 
   const FoodCard({
     super.key,
     required this.title,
     required this.imageAsset,
-    this.onTap,
+    required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: onTap,
-      child: SizedBox(
+      child: Container(
         width: 140,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(16),
+          color: Colors.white,
+          boxShadow: const [
+            BoxShadow(
+              color: Colors.black12,
+              blurRadius: 6,
+              offset: Offset(0, 4),
+            )
+          ],
+        ),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // صورة الأكل
-            Container(
-              height: 100,
-              width: 140,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(16),
-                boxShadow: const [
-                  BoxShadow(
-                    color: Colors.black26,
-                    blurRadius: 6,
-                    offset: Offset(0, 3),
-                  ),
-                ],
-                color: Colors.white,
-              ),
-              clipBehavior: Clip.hardEdge,
-              child: Image.asset(
-                imageAsset,
-                fit: BoxFit.cover,
-                errorBuilder: (context, error, stack) => Container(
-                  color: Colors.grey[200],
-                  child: const Center(
-                    child: Icon(Icons.fastfood, size: 40, color: Colors.grey),
-                  ),
+            Expanded(
+              child: ClipRRect(
+                borderRadius: const BorderRadius.vertical(
+                  top: Radius.circular(16),
+                ),
+                child: Image.network(
+                  imageAsset,
+                  fit: BoxFit.cover,
                 ),
               ),
             ),
-
-            const SizedBox(height: 8),
-
-            // اسم الأكلة
-            Text(
-              title,
-              textAlign: TextAlign.center,
-              style: const TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.w600,
+            Padding(
+              padding: const EdgeInsets.all(8.0),
+              child: Text(
+                title,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             ),
           ],
