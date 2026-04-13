@@ -1,9 +1,18 @@
 import 'package:flutter/material.dart';
+import 'package:kid_guard/ui/home/widget/CartProvider.dart';
+import 'package:provider/provider.dart';
+
 import 'package:kid_guard/ui/home/screen/home_screen.dart';
+import 'package:kid_guard/ui/vaccine/screen/vaccine_screen.dart';
 
 
 void main() {
-  runApp(const MyApp());
+  runApp(
+    ChangeNotifierProvider(
+      create: (_) => CartProvider(),
+      child: const MyApp(),
+    ),
+  );
 }
 
 class MyApp extends StatelessWidget {
@@ -20,9 +29,8 @@ class MyApp extends StatelessWidget {
       ),
       initialRoute: HomeScreen.routeName,
       routes: {
-        HomeScreen.routeName:(_)=>HomeScreen(),
-
-
+        HomeScreen.routeName: (_) => const HomeScreen(),
+        VaccinesScreen.routeName: (_) => const VaccinesScreen(),
       },
     );
   }

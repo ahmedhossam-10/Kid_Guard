@@ -2,13 +2,17 @@ import 'package:flutter/material.dart';
 
 class MedicineCard extends StatelessWidget {
   final String name;
+  final String dose;
   final String time;
+  final String days;
   final VoidCallback? onTap;
 
   const MedicineCard({
     super.key,
     required this.name,
+    required this.dose,
     required this.time,
+    required this.days,
     this.onTap,
   });
 
@@ -33,10 +37,7 @@ class MedicineCard extends StatelessWidget {
           ],
         ),
         child: ListTile(
-          contentPadding: const EdgeInsets.symmetric(
-            horizontal: 20,
-            vertical: 12,
-          ),
+          contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
           leading: CircleAvatar(
             radius: 26,
             backgroundColor: const Color(0xFF3A7BD5),
@@ -54,12 +55,22 @@ class MedicineCard extends StatelessWidget {
               color: Colors.black87,
             ),
           ),
-          subtitle: Text(
-            time,
-            style: const TextStyle(
-              fontSize: 15,
-              color: Colors.black54,
-            ),
+          subtitle: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                "Dose: $dose mg",
+                style: const TextStyle(fontSize: 15, color: Colors.black54),
+              ),
+              Text(
+                "Time: $time",
+                style: const TextStyle(fontSize: 15, color: Colors.black54),
+              ),
+              Text(
+                "Days: $days",
+                style: const TextStyle(fontSize: 15, color: Colors.black54),
+              ),
+            ],
           ),
           trailing: const Icon(
             Icons.notifications_active_outlined,

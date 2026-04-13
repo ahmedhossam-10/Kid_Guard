@@ -1,18 +1,59 @@
 import 'package:flutter/material.dart';
-
+import '../../../add_medicine/screen/AddMedicine.dart';
+import '../../../vaccine/screen/vaccine_screen.dart';
 import '../../widget/medicine_card.dart';
 
-class MedicineTab extends StatelessWidget {
+class MedicineTab extends StatefulWidget {
   const MedicineTab({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    final List<Map<String, String>> medicines = [
-      {"name": "Paracetamol", "time": "8:00 AM"},
-      {"name": "Vitamin C", "time": "1:00 PM"},
-      {"name": "Cough Syrup", "time": "9:00 PM"},
-    ];
+  State<MedicineTab> createState() => _MedicineTabState();
+}
 
+class _MedicineTabState extends State<MedicineTab> {
+  // القائمة الابتدائية
+  List<Map<String, dynamic>> medicines = [
+    {
+      "name": "Paracetamol",
+      "dose": "500",
+      "time": "8:00 AM",
+      "days": "Monday, Wednesday, Friday"
+    },
+    {
+      "name": "Vitamin C",
+      "dose": "1000",
+      "time": "1:00 PM",
+      "days": "Tuesday, Thursday"
+    },
+  ];
+
+  Future<void> navigateToAddMedicine() async {
+    final result = await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => const AddMedicine()),
+    );
+
+    // التحقق من أن النتيجة ليست null وأنها Map
+    if (result != null && result is Map<String, dynamic>) {
+      setState(() {
+        // استخراج الأوقات وتحويلها لنص واحد مفصول بفاصلة
+        // لأن result["times"] عبارة عن List<String>
+        List<String> timesList = List<String>.from(result["times"] ?? []);
+        String formattedTimes = timesList.isNotEmpty ? timesList.join(", ") : "Not set";
+
+        // إضافة الدواء الجديد للقائمة
+        medicines.add({
+          "name": result["name"] ?? "Unknown",
+          "dose": result["dose"] ?? "0",
+          "time": formattedTimes, // هنا حلينا مشكلة المفتاح والنوع
+          "days": (result["days"] as List<String>).join(", "),
+        });
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return Scaffold(
       extendBodyBehindAppBar: true,
       appBar: AppBar(
@@ -30,35 +71,27 @@ class MedicineTab extends StatelessWidget {
         ),
         actions: [
           IconButton(
-            icon: const Icon(
-              Icons.vaccines_outlined,
-              color: Colors.white,
-              size: 28,
-            ),
+            icon: const Icon(Icons.vaccines_outlined, color: Colors.white, size: 28),
             onPressed: () {
-              // TODO: Navigate to vaccinations page
+              Navigator.pushNamed(context, VaccinesScreen.routeName);
             },
           ),
           const SizedBox(width: 8),
         ],
       ),
-
       floatingActionButton: Padding(
         padding: const EdgeInsets.only(bottom: 60, right: 8),
         child: FloatingActionButton(
           backgroundColor: Colors.white,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
-          onPressed: () {
-            // TODO: Navigate to add medicine page
-          },
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          onPressed: navigateToAddMedicine,
           child: const Icon(Icons.add, color: Color(0xFF3A7BD5), size: 30),
         ),
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
-
       body: Container(
+        width: double.infinity,
+        height: double.infinity,
         decoration: const BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.bottomCenter,
@@ -69,32 +102,28 @@ class MedicineTab extends StatelessWidget {
         child: SafeArea(
           child: medicines.isEmpty
               ? const Center(
-                  child: Text(
-                    "No medicines added yet",
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 20,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                )
+            child: Text(
+              "No medicines added yet",
+              style: TextStyle(color: Colors.white, fontSize: 20),
+            ),
+          )
               : ListView.separated(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 20,
-                    vertical: 25,
-                  ),
-                  itemCount: medicines.length,
-                  separatorBuilder: (context, index) =>
-                      const SizedBox(height: 15),
-                  itemBuilder: (context, index) {
-                    final med = medicines[index];
-                    return MedicineCard(
-                      name: med["name"]!,
-                      time: med["time"]!,
-                      onTap: () {},
-                    );
-                  },
-                ),
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 25),
+            itemCount: medicines.length,
+            separatorBuilder: (context, index) => const SizedBox(height: 15),
+            itemBuilder: (context, index) {
+              final med = medicines[index];
+              return MedicineCard(
+                name: med["name"],
+                dose: med["dose"],
+                time: med["time"],
+                days: med["days"],
+                onTap: () {
+                  // أكشن عند الضغط على الكارت
+                },
+              );
+            },
+          ),
         ),
       ),
     );
