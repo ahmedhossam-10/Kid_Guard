@@ -9,5 +9,6 @@ abstract final class AssetsManager {
   static const String restaurant_selected = "assets/image/restaurant-fill.svg";
   static const String profile_unselected = "assets/image/user-line.svg";
   static const String profile_selected = "assets/image/user-fill.svg";
+  static const String Logo= "assets/image/logo.jpeg";
 
 }
