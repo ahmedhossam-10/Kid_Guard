@@ -1,5 +1,4 @@
-import 'dart:async'; // ضروري للـ TimeoutException
-import 'package:dio/dio.dart';
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../../../login/Login.dart';
@@ -29,40 +28,104 @@ class _ProfileTabState extends State<ProfileTab> {
     _fetchProfileData();
   }
 
+  // --- دالة جلب البيانات مع ضمان إيقاف التحميل مهما حدث ---
   Future<void> _fetchProfileData() async {
-    final SharedPreferences prefs = await SharedPreferences.getInstance();
     if (!mounted) return;
-
-    _userToken = prefs.getString('user_token');
-    selectedChildId = prefs.getInt('selected_child_id');
-
-    if (_userToken == null) {
-      _logout();
-      return;
-    }
+    setState(() => isLoading = true);
 
     try {
-      final response = await _apiService.getParentProfile(_userToken!);
+      final SharedPreferences prefs = await SharedPreferences.getInstance();
+      _userToken = prefs.getString('user_token');
+      selectedChildId = prefs.getInt('selected_child_id');
+
+      if (_userToken == null || _userToken!.isEmpty) {
+        _logout();
+        return;
+      }
+
+      // إضافة timeout لضمان عدم التعليق لو السيرفر ماردش
+      final response = await _apiService.getParentProfile(_userToken!)
+          .timeout(const Duration(seconds: 12));
+
       if (!mounted) return;
 
-      if (response.statusCode == 200) {
+      if (response.statusCode == 200 && response.data != null) {
         setState(() {
           userData = response.data;
           childrenList = response.data['children'] ?? [];
+
           if (selectedChildId == null && childrenList.isNotEmpty) {
             _saveSelectedChild(childrenList[0]['id'], childrenList[0]['fullName']);
           }
-          isLoading = false;
         });
+      } else if (response.statusCode == 401) {
+        _logout(); // التوكن منتهي
+      } else {
+        _showSnackBar("Server Error: ${response.statusCode}");
       }
+    } on TimeoutException {
+      _showSnackBar("Connection timed out. Pull down to retry.");
     } catch (e) {
-      debugPrint("Error Fetching Profile: $e");
-      if (!mounted) return;
-      setState(() => isLoading = false);
+      debugPrint("PROFILE FETCH ERROR: $e");
+      _showSnackBar("Failed to load profile data.");
+    } finally {
+      // السطر ده هو اللي بيضمن إن الدائرة تختفي في كل الحالات
+      if (mounted) {
+        setState(() => isLoading = false);
+      }
     }
   }
 
-  // --- دالة تغيير رقم الهاتف المحدثة ---
+  // --- تحديث رقم الهاتف ---
+  Future<void> _handlePhoneUpdate(String newPhone) async {
+    setState(() => isLoading = true);
+    try {
+      final response = await _apiService.changePhoneNumber(_userToken!, newPhone)
+          .timeout(const Duration(seconds: 15));
+
+      if (!mounted) return;
+
+      if (response.statusCode == 200) {
+        _showSnackBar("Phone updated successfully");
+        await _fetchProfileData();
+      } else {
+        _showSnackBar("Update failed: ${response.statusCode}");
+        setState(() => isLoading = false);
+      }
+    } catch (e) {
+      debugPrint("PHONE UPDATE ERROR: $e");
+      _showSnackBar("Connection error or invalid data");
+      if (mounted) setState(() => isLoading = false);
+    }
+  }
+
+  // --- تحديث كلمة المرور ---
+  Future<void> _handlePasswordUpdate(String oldP, String newP, String confirmP) async {
+    setState(() => isLoading = true);
+    try {
+      final response = await _apiService.changePassword(
+        token: _userToken!,
+        oldPassword: oldP,
+        newPassword: newP,
+        confirmPassword: confirmP,
+      ).timeout(const Duration(seconds: 15));
+
+      if (!mounted) return;
+
+      if (response.statusCode == 200) {
+        _showSnackBar("Password changed successfully");
+      } else {
+        String errorMsg = response.data is Map ? (response.data['message'] ?? "Update failed") : "Update failed";
+        _showSnackBar(errorMsg);
+      }
+    } catch (e) {
+      _showSnackBar("Error connecting to server");
+    } finally {
+      if (mounted) setState(() => isLoading = false);
+    }
+  }
+
+  // --- الدوال المساعدة للحوارات (Dialogs) ---
   void _showChangePhoneDialog() {
     final TextEditingController phoneController = TextEditingController(text: userData?['parentPhone']);
     showDialog(
@@ -78,7 +141,7 @@ class _ProfileTabState extends State<ProfileTab> {
         actions: [
           TextButton(onPressed: () => Navigator.pop(context), child: const Text("Cancel")),
           ElevatedButton(
-            onPressed: () async {
+            onPressed: () {
               if (phoneController.text.isNotEmpty) {
                 Navigator.pop(context);
                 _handlePhoneUpdate(phoneController.text);
@@ -91,35 +154,6 @@ class _ProfileTabState extends State<ProfileTab> {
     );
   }
 
-  Future<void> _handlePhoneUpdate(String newPhone) async {
-    setState(() => isLoading = true);
-    try {
-      // إضافة Timeout لمدة 15 ثانية لمنع التحميل اللانهائي
-      final response = await _apiService.changePhoneNumber(_userToken!, newPhone)
-          .timeout(const Duration(seconds: 15));
-
-      if (!mounted) return;
-
-      if (response.statusCode == 200) {
-        _showSnackBar("Phone updated successfully");
-        await _fetchProfileData(); // تحديث البيانات بعد النجاح
-      } else {
-        _showSnackBar("Server Error: ${response.statusCode}");
-        setState(() => isLoading = false);
-      }
-    } on TimeoutException {
-      if (!mounted) return;
-      _showSnackBar("Server timed out. Please try again.");
-      setState(() => isLoading = false);
-    } catch (e) {
-      debugPrint("PHONE UPDATE ERROR: $e");
-      if (!mounted) return;
-      _showSnackBar("Failed to update phone. Check connection.");
-      setState(() => isLoading = false);
-    }
-  }
-
-  // --- دالة تغيير كلمة المرور المحدثة ---
   void _showChangePasswordDialog() {
     final oldPass = TextEditingController();
     final newPass = TextEditingController();
@@ -158,42 +192,33 @@ class _ProfileTabState extends State<ProfileTab> {
     );
   }
 
-  Future<void> _handlePasswordUpdate(String oldP, String newP, String confirmP) async {
-    setState(() => isLoading = true);
-    try {
-      final response = await _apiService.changePassword(
-        token: _userToken!,
-        oldPassword: oldP,
-        newPassword: newP,
-        confirmPassword: confirmP,
-      ).timeout(const Duration(seconds: 15));
-
-      if (!mounted) return;
-
-      if (response.statusCode == 200) {
-        _showSnackBar("Password changed successfully");
-      } else {
-        // فحص رسالة الخطأ من السيرفر (مثلاً: الباسورد القديم غلط)
-        String errorMsg = response.data is Map ? (response.data['message'] ?? "Update failed") : "Update failed";
-        _showSnackBar(errorMsg);
-      }
-    } on TimeoutException {
-      _showSnackBar("Connection timed out.");
-    } catch (e) {
-      debugPrint("PASSWORD UPDATE ERROR: $e");
-      _showSnackBar("Error connecting to server");
-    } finally {
-      if (mounted) setState(() => isLoading = false);
-    }
-  }
-
-  // ... باقي الدوال (saveSelectedChild, confirmDelete, handleDelete, logout) تظل كما هي
+  // --- التعامل مع الأطفال (اختيار، حذف) ---
   Future<void> _saveSelectedChild(int childId, String childName) async {
     final SharedPreferences prefs = await SharedPreferences.getInstance();
     await prefs.setInt('selected_child_id', childId);
     if (!mounted) return;
     setState(() => selectedChildId = childId);
     _showSnackBar("Selected: $childName");
+  }
+
+  Future<void> _handleDelete(int id) async {
+    setState(() => isLoading = true);
+    try {
+      final response = await _apiService.deleteChild(_userToken!, id);
+      if (response.statusCode == 200 || response.statusCode == 204) {
+        if (selectedChildId == id) {
+          final SharedPreferences prefs = await SharedPreferences.getInstance();
+          await prefs.remove('selected_child_id');
+          selectedChildId = null;
+        }
+        await _fetchProfileData();
+        _showSnackBar("Deleted successfully");
+      }
+    } catch (e) {
+      _showSnackBar("Failed to delete child");
+    } finally {
+      if (mounted) setState(() => isLoading = false);
+    }
   }
 
   void _confirmDelete(int id, String name) {
@@ -216,28 +241,6 @@ class _ProfileTabState extends State<ProfileTab> {
         ],
       ),
     );
-  }
-
-  Future<void> _handleDelete(int id) async {
-    if (!mounted) return;
-    setState(() => isLoading = true);
-    try {
-      final response = await _apiService.deleteChild(_userToken!, id);
-      if (!mounted) return;
-      if (response.statusCode == 200 || response.statusCode == 204) {
-        if (selectedChildId == id) {
-          final SharedPreferences prefs = await SharedPreferences.getInstance();
-          await prefs.remove('selected_child_id');
-          selectedChildId = null;
-        }
-        await _fetchProfileData();
-        _showSnackBar("Deleted successfully");
-      }
-    } catch (e) {
-      if (!mounted) return;
-      _showSnackBar("Failed to delete child");
-      setState(() => isLoading = false);
-    }
   }
 
   void _logout() async {
