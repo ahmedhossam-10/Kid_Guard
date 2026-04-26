@@ -18,7 +18,6 @@ class _ChatBotScreenState extends State<ChatBotScreen> {
     final String text = _controller.text.trim();
     if (text.isEmpty || isLoading) return;
 
-
     setState(() {
       messages.add({
         "text": text,
@@ -30,8 +29,6 @@ class _ChatBotScreenState extends State<ChatBotScreen> {
     _controller.clear();
 
     try {
-      // 2. إرسال الرسالة للموديل عبر الـ ApiService
-      // ملاحظة: تأكد إن الـ API بيرجع الرد في شكل String أو عدل الـ Service حسب الحاجة
       final String response = await _apiService.getChatResponse(text);
 
       setState(() {
@@ -48,9 +45,11 @@ class _ChatBotScreenState extends State<ChatBotScreen> {
         });
       });
     } finally {
-      setState(() {
-        isLoading = false; // إيقاف حالة التحميل
-      });
+      if (mounted) {
+        setState(() {
+          isLoading = false;
+        });
+      }
     }
   }
 
@@ -62,7 +61,7 @@ class _ChatBotScreenState extends State<ChatBotScreen> {
         backgroundColor: Colors.transparent,
         elevation: 0,
         centerTitle: true,
-        iconTheme: const IconThemeData(color: Colors.white), // لضمان ظهور سهم الرجوع
+        iconTheme: const IconThemeData(color: Colors.white),
         title: const Text(
           "KidGuard Assistant",
           style: TextStyle(
@@ -128,15 +127,11 @@ class _ChatBotScreenState extends State<ChatBotScreen> {
                   },
                 ),
               ),
-
-              // مؤشر التحميل يظهر أثناء انتظار الرد
               if (isLoading)
                 const Padding(
                   padding: EdgeInsets.symmetric(vertical: 10),
                   child: CircularProgressIndicator(color: Colors.white),
                 ),
-
-              // Input Box
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                 decoration: BoxDecoration(
@@ -154,7 +149,7 @@ class _ChatBotScreenState extends State<ChatBotScreen> {
                     Expanded(
                       child: TextField(
                         controller: _controller,
-                        enabled: !isLoading, // تعطيل الإدخال أثناء التحميل
+                        enabled: !isLoading,
                         decoration: InputDecoration(
                           hintText: isLoading ? "Thinking..." : "Ask anything...",
                           hintStyle: TextStyle(
@@ -174,7 +169,11 @@ class _ChatBotScreenState extends State<ChatBotScreen> {
                           borderRadius: BorderRadius.circular(14),
                         ),
                         child: isLoading
-                            ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                            ? const SizedBox(
+                            height: 20,
+                            width: 20,
+                            child: CircularProgressIndicator(
+                                color: Colors.white, strokeWidth: 2))
                             : const Icon(Icons.send, color: Colors.white),
                       ),
                     )

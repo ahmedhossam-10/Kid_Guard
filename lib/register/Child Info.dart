@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:dio/dio.dart';
-import 'package:shared_preferences/shared_preferences.dart'; // المكتبة الجديدة
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:kid_guard/ui/home/screen/home_screen.dart';
 import '../../services/api_service.dart';
 
@@ -32,14 +32,8 @@ class _ChildInfoScreenState extends State<ChildInfoScreen> {
     setState(() => _isLoading = true);
 
     try {
-      debugPrint("=== [1] Start API Request ===");
-
-      // --- التعديل الجوهري لحل الـ 401 ---
       final SharedPreferences prefs = await SharedPreferences.getInstance();
-      // بنحاول نجيب التوكن من الـ Storage لو الـ widget.token بـ null
       String? finalToken = widget.token ?? prefs.getString('user_token');
-
-      debugPrint("=== [DEBUG] Token used: $finalToken ===");
 
       if (finalToken == null || finalToken.isEmpty) {
         _showSnackBar("Session error, please login again", Colors.redAccent);
@@ -55,11 +49,17 @@ class _ChildInfoScreenState extends State<ChildInfoScreen> {
         gender: _gender,
       );
 
-      debugPrint("=== [2] Server Response Code: ${response.statusCode} ===");
-
       if (response.statusCode == 200 || response.statusCode == 201) {
+        final responseData = response.data;
+
+        int newChildId = responseData['childId'];
+        String newChildName = responseData['childname'];
+
+        await prefs.setInt('selected_child_id', newChildId);
+        await prefs.setString('selected_child_name', newChildName);
+
         if (!mounted) return;
-        _showSnackBar("Profile Created Successfully!", Colors.green);
+        _showSnackBar(responseData['message'] ?? "Profile Created Successfully!", Colors.green);
 
         Navigator.pushNamedAndRemoveUntil(
           context,
@@ -71,21 +71,17 @@ class _ChildInfoScreenState extends State<ChildInfoScreen> {
       } else {
         _showSnackBar("Error: ${response.statusCode}", Colors.redAccent);
       }
-
     } on DioException catch (e) {
-      debugPrint("=== [3] Dio Error === Status: ${e.response?.statusCode}");
       String message = "Connection error";
       if (e.response?.statusCode == 401) message = "Session expired, login again";
       _showSnackBar(message, Colors.redAccent);
     } catch (e) {
-      debugPrint("=== [4] Unexpected Error ===: $e");
       _showSnackBar("An unexpected error occurred", Colors.red);
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
   }
 
-  // --- باقي الـ UI كما هو (AppBar, Buttons, الخ) ---
   void _showSnackBar(String message, Color color) {
     if (!mounted) return;
     ScaffoldMessenger.of(context).hideCurrentSnackBar();
@@ -126,7 +122,6 @@ class _ChildInfoScreenState extends State<ChildInfoScreen> {
                   const Text("Baby's Profile",
                       style: TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.bold)),
                   const SizedBox(height: 40),
-
                   TextFormField(
                     controller: _nameController,
                     enabled: !_isLoading,
@@ -134,7 +129,6 @@ class _ChildInfoScreenState extends State<ChildInfoScreen> {
                     decoration: _buildInputDecoration("Child's Name", Icons.person_outline),
                   ),
                   const SizedBox(height: 20),
-
                   InkWell(
                     onTap: _isLoading ? null : _presentDatePicker,
                     borderRadius: BorderRadius.circular(15),
@@ -159,7 +153,6 @@ class _ChildInfoScreenState extends State<ChildInfoScreen> {
                     ),
                   ),
                   const SizedBox(height: 20),
-
                   Row(
                     children: [
                       Expanded(child: _buildGenderCard("Boy", Icons.male)),
@@ -167,9 +160,7 @@ class _ChildInfoScreenState extends State<ChildInfoScreen> {
                       Expanded(child: _buildGenderCard("Girl", Icons.female)),
                     ],
                   ),
-
                   const SizedBox(height: 60),
-
                   ElevatedButton(
                     onPressed: _isLoading ? null : _finishSetup,
                     style: ElevatedButton.styleFrom(
@@ -218,7 +209,9 @@ class _ChildInfoScreenState extends State<ChildInfoScreen> {
         child: Column(
           children: [
             Icon(icon, color: isSelected ? const Color(0xFF3A7BD5) : Colors.white, size: 30),
-            Text(type, style: TextStyle(color: isSelected ? const Color(0xFF3A7BD5) : Colors.white, fontWeight: FontWeight.bold)),
+            Text(type,
+                style: TextStyle(
+                    color: isSelected ? const Color(0xFF3A7BD5) : Colors.white, fontWeight: FontWeight.bold)),
           ],
         ),
       ),

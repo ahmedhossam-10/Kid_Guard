@@ -28,7 +28,6 @@ class _ProfileTabState extends State<ProfileTab> {
     _fetchProfileData();
   }
 
-  // --- دالة جلب البيانات مع ضمان إيقاف التحميل مهما حدث ---
   Future<void> _fetchProfileData() async {
     if (!mounted) return;
     setState(() => isLoading = true);
@@ -43,7 +42,6 @@ class _ProfileTabState extends State<ProfileTab> {
         return;
       }
 
-      // إضافة timeout لضمان عدم التعليق لو السيرفر ماردش
       final response = await _apiService.getParentProfile(_userToken!)
           .timeout(const Duration(seconds: 12));
 
@@ -54,29 +52,41 @@ class _ProfileTabState extends State<ProfileTab> {
           userData = response.data;
           childrenList = response.data['children'] ?? [];
 
-          if (selectedChildId == null && childrenList.isNotEmpty) {
-            _saveSelectedChild(childrenList[0]['id'], childrenList[0]['fullName']);
+          bool childExists = childrenList.any((child) => child['id'] == selectedChildId);
+
+          if ((selectedChildId == null || !childExists) && childrenList.isNotEmpty) {
+            _saveSelectedChild(childrenList[0]['id'], childrenList[0]['fullName'] ?? "Child", silent: true);
           }
         });
       } else if (response.statusCode == 401) {
-        _logout(); // التوكن منتهي
+        _logout();
       } else {
-        _showSnackBar("Server Error: ${response.statusCode}");
+        _showSnackBar("Server Error");
       }
     } on TimeoutException {
       _showSnackBar("Connection timed out. Pull down to retry.");
     } catch (e) {
-      debugPrint("PROFILE FETCH ERROR: $e");
       _showSnackBar("Failed to load profile data.");
     } finally {
-      // السطر ده هو اللي بيضمن إن الدائرة تختفي في كل الحالات
-      if (mounted) {
-        setState(() => isLoading = false);
-      }
+      if (mounted) setState(() => isLoading = false);
     }
   }
 
-  // --- تحديث رقم الهاتف ---
+  Future<void> _saveSelectedChild(int childId, String childName, {bool silent = false}) async {
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    await prefs.setInt('selected_child_id', childId);
+    await prefs.setString('selected_child_name', childName);
+
+    if (!mounted) return;
+    setState(() {
+      selectedChildId = childId;
+    });
+
+    if (!silent) {
+      _showSnackBar("Selected: $childName");
+    }
+  }
+
   Future<void> _handlePhoneUpdate(String newPhone) async {
     setState(() => isLoading = true);
     try {
@@ -89,17 +99,15 @@ class _ProfileTabState extends State<ProfileTab> {
         _showSnackBar("Phone updated successfully");
         await _fetchProfileData();
       } else {
-        _showSnackBar("Update failed: ${response.statusCode}");
+        _showSnackBar("Update failed");
         setState(() => isLoading = false);
       }
     } catch (e) {
-      debugPrint("PHONE UPDATE ERROR: $e");
-      _showSnackBar("Connection error or invalid data");
+      _showSnackBar("Connection error");
       if (mounted) setState(() => isLoading = false);
     }
   }
 
-  // --- تحديث كلمة المرور ---
   Future<void> _handlePasswordUpdate(String oldP, String newP, String confirmP) async {
     setState(() => isLoading = true);
     try {
@@ -115,8 +123,7 @@ class _ProfileTabState extends State<ProfileTab> {
       if (response.statusCode == 200) {
         _showSnackBar("Password changed successfully");
       } else {
-        String errorMsg = response.data is Map ? (response.data['message'] ?? "Update failed") : "Update failed";
-        _showSnackBar(errorMsg);
+        _showSnackBar("Failed to update password");
       }
     } catch (e) {
       _showSnackBar("Error connecting to server");
@@ -125,7 +132,34 @@ class _ProfileTabState extends State<ProfileTab> {
     }
   }
 
-  // --- الدوال المساعدة للحوارات (Dialogs) ---
+  Future<void> _handleDelete(int id) async {
+    setState(() => isLoading = true);
+    try {
+      final response = await _apiService.deleteChild(_userToken!, id);
+      if (response.statusCode == 200 || response.statusCode == 204) {
+        if (selectedChildId == id) {
+          final SharedPreferences prefs = await SharedPreferences.getInstance();
+          await prefs.remove('selected_child_id');
+          await prefs.remove('selected_child_name');
+          selectedChildId = null;
+        }
+        await _fetchProfileData();
+        _showSnackBar("Deleted successfully");
+      }
+    } catch (e) {
+      _showSnackBar("Failed to delete child");
+    } finally {
+      if (mounted) setState(() => isLoading = false);
+    }
+  }
+
+  void _logout() async {
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    await prefs.clear();
+    if (!mounted) return;
+    Navigator.pushNamedAndRemoveUntil(context, LoginScreen.routeName, (route) => false);
+  }
+
   void _showChangePhoneDialog() {
     final TextEditingController phoneController = TextEditingController(text: userData?['parentPhone']);
     showDialog(
@@ -192,35 +226,6 @@ class _ProfileTabState extends State<ProfileTab> {
     );
   }
 
-  // --- التعامل مع الأطفال (اختيار، حذف) ---
-  Future<void> _saveSelectedChild(int childId, String childName) async {
-    final SharedPreferences prefs = await SharedPreferences.getInstance();
-    await prefs.setInt('selected_child_id', childId);
-    if (!mounted) return;
-    setState(() => selectedChildId = childId);
-    _showSnackBar("Selected: $childName");
-  }
-
-  Future<void> _handleDelete(int id) async {
-    setState(() => isLoading = true);
-    try {
-      final response = await _apiService.deleteChild(_userToken!, id);
-      if (response.statusCode == 200 || response.statusCode == 204) {
-        if (selectedChildId == id) {
-          final SharedPreferences prefs = await SharedPreferences.getInstance();
-          await prefs.remove('selected_child_id');
-          selectedChildId = null;
-        }
-        await _fetchProfileData();
-        _showSnackBar("Deleted successfully");
-      }
-    } catch (e) {
-      _showSnackBar("Failed to delete child");
-    } finally {
-      if (mounted) setState(() => isLoading = false);
-    }
-  }
-
   void _confirmDelete(int id, String name) {
     showDialog(
       context: context,
@@ -241,13 +246,6 @@ class _ProfileTabState extends State<ProfileTab> {
         ],
       ),
     );
-  }
-
-  void _logout() async {
-    final SharedPreferences prefs = await SharedPreferences.getInstance();
-    await prefs.clear();
-    if (!mounted) return;
-    Navigator.pushNamedAndRemoveUntil(context, LoginScreen.routeName, (route) => false);
   }
 
   @override
@@ -363,10 +361,20 @@ class _ProfileTabState extends State<ProfileTab> {
           children: [
             CircleAvatar(
               backgroundColor: isSelected ? const Color(0xFF3A7BD5) : Colors.white24,
-              child: Icon(gender.toLowerCase() == "boy" ? Icons.boy : Icons.girl, color: isSelected ? Colors.white : Colors.white70),
+              child: Icon(
+                  gender.toLowerCase() == "boy" ? Icons.boy : Icons.girl,
+                  color: isSelected ? Colors.white : Colors.white70
+              ),
             ),
             const SizedBox(width: 15),
-            Text(name, style: TextStyle(color: isSelected ? const Color(0xFF3A7BD5) : Colors.white, fontWeight: FontWeight.bold, fontSize: 18)),
+            Text(
+                name,
+                style: TextStyle(
+                    color: isSelected ? const Color(0xFF3A7BD5) : Colors.white,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 18
+                )
+            ),
             const Spacer(),
             IconButton(
               icon: Icon(Icons.delete_outline, color: isSelected ? Colors.red : Colors.white70),
@@ -380,7 +388,10 @@ class _ProfileTabState extends State<ProfileTab> {
   }
 
   Widget _buildSectionTitle(String title) {
-    return Align(alignment: Alignment.centerLeft, child: Text(title, style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)));
+    return Align(
+        alignment: Alignment.centerLeft,
+        child: Text(title, style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold))
+    );
   }
 
   Widget _buildGlassInfoCard(IconData icon, String label, String value, {Widget? trailing}) {

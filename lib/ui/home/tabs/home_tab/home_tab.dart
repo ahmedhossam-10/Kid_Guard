@@ -42,11 +42,8 @@ class _HomeTabState extends State<HomeTab> with SingleTickerProviderStateMixin {
     try {
       if (await canLaunchUrl(launchUri)) {
         await launchUrl(launchUri);
-      } else {
-        debugPrint("Could not launch $launchUri");
       }
     } catch (e) {
-      debugPrint("Error launching dialer: $e");
     }
   }
 
@@ -64,15 +61,14 @@ class _HomeTabState extends State<HomeTab> with SingleTickerProviderStateMixin {
         setState(() => isUploading = true);
         try {
           final result = await _apiService.uploadAudioFile(audioPath!);
-          debugPrint("Full API Response: $result");
           if (!mounted) return;
           _showResultDialog(result);
         } catch (e) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text("An error occurred during connection: $e")),
+            const SnackBar(content: Text("Connection error. Please try again.")),
           );
         } finally {
-          setState(() => isUploading = false);
+          if (mounted) setState(() => isUploading = false);
         }
       }
     } else {
@@ -123,12 +119,10 @@ class _HomeTabState extends State<HomeTab> with SingleTickerProviderStateMixin {
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: Text(
-                    "Confidence Percentage: ${(result['confidence'] * 100).toStringAsFixed(1)}%",
+                    "Confidence: ${(result['confidence'] * 100).toStringAsFixed(1)}%",
                     style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
                   ),
                 )
-              else
-                const Text("Confidence Percentage: Not Available"),
             ],
           ),
         ),
@@ -170,7 +164,6 @@ class _HomeTabState extends State<HomeTab> with SingleTickerProviderStateMixin {
             icon: const Icon(Icons.phone, color: Colors.red, size: 28),
             onPressed: () => _makeEmergencyCall("123"),
           ),
-
           IconButton(
             icon: const Icon(Icons.message_outlined, color: Colors.white, size: 28),
             onPressed: () => Navigator.push(
@@ -228,7 +221,7 @@ class _HomeTabState extends State<HomeTab> with SingleTickerProviderStateMixin {
                 ),
                 const SizedBox(height: 40),
                 Text(
-                  isUploading ? "Loading.." : (isRecording ? "Listening" : "click to start"),
+                  isUploading ? "Analyzing.." : (isRecording ? "Listening" : "Click to start"),
                   style: const TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.bold),
                 ),
               ],

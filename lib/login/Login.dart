@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:dio/dio.dart';
-import 'package:shared_preferences/shared_preferences.dart'; // 1. ضفنا المكتبة هنا
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:kid_guard/ui/home/screen/home_screen.dart';
 import '../register/register.dart';
 import '../../services/api_service.dart';
@@ -21,11 +21,9 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _isObscured = true;
   final _formKey = GlobalKey<FormState>();
 
-  // دالة لحفظ التوكن في ذاكرة الموبايل
   Future<void> _saveToken(String token) async {
     final SharedPreferences prefs = await SharedPreferences.getInstance();
     await prefs.setString('user_token', token);
-    debugPrint("=== [STORAGE] Token Saved Successfully ===");
   }
 
   void _login() async {
@@ -38,14 +36,11 @@ class _LoginScreenState extends State<LoginScreen> {
           _passwordController.text.trim(),
         );
 
-        debugPrint("Login Response: ${response.data}");
-
         if (response.statusCode == 200 || response.statusCode == 201) {
           final responseData = response.data is Map ? response.data : {};
           String? userToken = responseData['token']?.toString();
 
           if (userToken != null) {
-            // 2. حفظ التوكن فوراً قبل الانتقال لأي صفحة
             await _saveToken(userToken);
           }
 
@@ -59,7 +54,6 @@ class _LoginScreenState extends State<LoginScreen> {
             ),
           );
 
-          // الانتقال للهوم (دلوقتي الهوم والبروفايل هيقدروا يقرأوا التوكن من الـ Storage)
           Navigator.pushReplacementNamed(context, HomeScreen.routeName);
         }
       } on DioException catch (e) {
@@ -83,7 +77,10 @@ class _LoginScreenState extends State<LoginScreen> {
       } catch (e) {
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("An unexpected error occurred"), behavior: SnackBarBehavior.floating),
+          const SnackBar(
+            content: Text("An unexpected error occurred"),
+            behavior: SnackBarBehavior.floating,
+          ),
         );
       } finally {
         if (mounted) setState(() => _isLoading = false);
@@ -116,10 +113,15 @@ class _LoginScreenState extends State<LoginScreen> {
                   children: [
                     const Icon(Icons.lock_person_rounded, size: 100, color: Colors.white),
                     const SizedBox(height: 20),
-                    const Text("Welcome Back", style: TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.bold)),
-                    const Text("Login to your KidGuard account", style: TextStyle(color: Colors.white70, fontSize: 16)),
+                    const Text(
+                      "Welcome Back",
+                      style: TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.bold),
+                    ),
+                    const Text(
+                      "Login to your KidGuard account",
+                      style: TextStyle(color: Colors.white70, fontSize: 16),
+                    ),
                     const SizedBox(height: 40),
-
                     TextFormField(
                       controller: _emailController,
                       keyboardType: TextInputType.emailAddress,
@@ -128,7 +130,6 @@ class _LoginScreenState extends State<LoginScreen> {
                       validator: (value) => (value == null || value.isEmpty) ? "Please enter email" : null,
                     ),
                     const SizedBox(height: 20),
-
                     TextFormField(
                       controller: _passwordController,
                       obscureText: _isObscured,
@@ -141,9 +142,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                       validator: (value) => (value != null && value.length < 6) ? "Password is too short" : null,
                     ),
-
                     const SizedBox(height: 40),
-
                     ElevatedButton(
                       onPressed: _isLoading ? null : _login,
                       style: ElevatedButton.styleFrom(
@@ -155,13 +154,13 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                       child: _isLoading
                           ? const SizedBox(
-                          height: 20,
-                          width: 20,
-                          child: CircularProgressIndicator(color: Color(0xFF3A7BD5), strokeWidth: 2))
+                        height: 20,
+                        width: 20,
+                        child: CircularProgressIndicator(color: Color(0xFF3A7BD5), strokeWidth: 2),
+                      )
                           : const Text("LOGIN", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                     ),
                     const SizedBox(height: 20),
-
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [

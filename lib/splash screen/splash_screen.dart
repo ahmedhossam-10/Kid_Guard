@@ -21,13 +21,11 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
   void initState() {
     super.initState();
 
-    // 1. جعل الـ Status Bar شفاف ومتناسق مع الخلفية
     SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
       statusBarColor: Colors.transparent,
       statusBarIconBrightness: Brightness.light,
     ));
 
-    // 2. إعداد الأنيميشن (الظهور التدريجي)
     _controller = AnimationController(
       vsync: this,
       duration: const Duration(seconds: 2),
@@ -39,7 +37,6 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
   }
 
   void _navigateToNext() async {
-    // انتظار 3 ثواني لعرض الـ Splash
     await Future.delayed(const Duration(seconds: 3));
 
     final SharedPreferences prefs = await SharedPreferences.getInstance();
@@ -77,13 +74,12 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              // --- تعديل اللوجو ليكون داخل دائرة احترافية ---
               Container(
-                width: 180, // حجم الدائرة
+                width: 180,
                 height: 180,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: Colors.white, // خلفية بيضاء تحت اللوجو لبروزه
+                  color: Colors.white,
                   border: Border.all(color: Colors.white.withOpacity(0.4), width: 5),
                   boxShadow: [
                     BoxShadow(
@@ -96,14 +92,11 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
                 child: ClipOval(
                   child: Image.asset(
                     AssetsManager.Logo,
-                    fit: BoxFit.cover, // يضمن ملء الدائرة بالكامل
+                    fit: BoxFit.cover,
                   ),
                 ),
               ),
-              // -------------------------------------------
-
               const SizedBox(height: 30),
-
               const Text(
                 "KidGuard Assistant",
                 style: TextStyle(
@@ -120,9 +113,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
                   ],
                 ),
               ),
-
               const SizedBox(height: 60),
-
               const CircularProgressIndicator(
                 color: Colors.white,
                 strokeWidth: 3,

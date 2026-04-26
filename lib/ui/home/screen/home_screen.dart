@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../../core/AssetsManger/AssetsManger.dart';
 import '../tabs/home_tab/home_tab.dart';
 import '../tabs/medicine_tab/medicine_tab.dart';
 import '../tabs/profile_tab/profile_tab.dart';
 import '../tabs/restaurant_tab/restaurant_tab.dart';
+import '../../../../services/api_service.dart';
 
 class HomeScreen extends StatefulWidget {
   static const String routeName = 'home';
@@ -17,6 +19,7 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   int selectedIndex = 0;
+  final ApiService _apiService = ApiService();
 
   late List<Widget> tabs;
 
@@ -29,19 +32,62 @@ class _HomeScreenState extends State<HomeScreen> {
       RestaurantTab(),
       ProfileTab(),
     ];
+    _setupSelectedChild();
+  }
+
+  Future<void> _setupSelectedChild() async {
+    final prefs = await SharedPreferences.getInstance();
+
+    if (prefs.containsKey('selected_child_id')) {
+      debugPrint("=== [HOME] Child already in storage: ${prefs.getInt('selected_child_id')} ===");
+      return;
+    }
+
+    try {
+      String? token = prefs.getString('user_token');
+      if (token == null) return;
+
+      final response = await _apiService.getParentProfile(token);
+
+      if (response.statusCode == 200) {
+        final dynamic rawData = response.data;
+        List<dynamic> childrenList = [];
+
+        if (rawData is Map && rawData['children'] != null) {
+          childrenList = rawData['children'];
+        } else if (rawData is List) {
+          childrenList = rawData;
+        }
+
+        if (childrenList.isNotEmpty) {
+          final firstChild = childrenList[0];
+          int id = firstChild['id'];
+          String name = firstChild['fullName'] ?? "Unknown";
+
+          await prefs.setInt('selected_child_id', id);
+          await prefs.setString('selected_child_name', name);
+
+          debugPrint("=== [HOME] Auto-Selected Child: $name (ID: $id) ===");
+
+          if (mounted) setState(() {});
+        } else {
+          debugPrint("=== [HOME] Server returned empty children list ===");
+        }
+      }
+    } catch (e) {
+      debugPrint("=== [HOME] Auto-Selection Error: $e ===");
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      // ✅ خلى الخلفية شفافة
       backgroundColor: Colors.transparent,
-      extendBody: true, // ✅ علشان الخلفية تمتد تحت الـ navigation bar
+      extendBody: true,
       body: tabs[selectedIndex],
-
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
-          color: const Color(0xFF6EC6FF).withOpacity(0.9), // ✅ شوية شفافية علشان الخلفية تبان وراه
+          color: const Color(0xFF6EC6FF).withOpacity(0.9),
           borderRadius: const BorderRadius.only(
             topLeft: Radius.circular(25),
             topRight: Radius.circular(25),

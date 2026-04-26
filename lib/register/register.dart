@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:dio/dio.dart';
-import 'package:shared_preferences/shared_preferences.dart'; // 1. ضفنا المكتبة هنا
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../services/api_service.dart';
 import 'Child Info.dart';
 
@@ -26,11 +26,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
   bool _isObscured = true;
   final _formKey = GlobalKey<FormState>();
 
-  // 2. دالة حفظ التوكن في ذاكرة الموبايل (نفس اللي عملناها في اللوج إن)
   Future<void> _saveToken(String token) async {
     final SharedPreferences prefs = await SharedPreferences.getInstance();
     await prefs.setString('user_token', token);
-    debugPrint("=== [STORAGE] Token Saved from Register ===");
   }
 
   void _register() async {
@@ -46,20 +44,16 @@ class _RegisterScreenState extends State<RegisterScreen> {
           age: _ageController.text.trim(),
         );
 
-        debugPrint("Register Response: ${response.data}");
-
         if (response.statusCode == 200 || response.statusCode == 201) {
           final responseData = response.data is Map ? response.data : {};
           String? userToken = responseData['token']?.toString();
 
-          // 3. حفظ التوكن فوراً
           if (userToken != null) {
             await _saveToken(userToken);
           }
 
           if (!mounted) return;
 
-          // الانتقال لصفحة الطفل (دلوقتي الـ ChildInfo تقدر تسحبه من الـ Storage لو حبيت)
           Navigator.push(
             context,
             MaterialPageRoute(
@@ -92,7 +86,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
     }
   }
 
-  // --- بقية الـ UI كما هو تماماً ---
   void _showSnackBar(String message, Color color) {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
@@ -135,7 +128,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       style: TextStyle(color: Colors.white, fontSize: 26, fontWeight: FontWeight.bold),
                     ),
                     const SizedBox(height: 30),
-
                     _buildTextField(
                       controller: _nameController,
                       hint: "Full Name",
@@ -143,7 +135,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       validator: (val) => (val == null || val.isEmpty) ? "Enter your name" : null,
                     ),
                     const SizedBox(height: 15),
-
                     _buildTextField(
                       controller: _emailController,
                       hint: "Email Address",
@@ -152,7 +143,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       validator: (val) => (val == null || !val.contains('@')) ? "Enter a valid email" : null,
                     ),
                     const SizedBox(height: 15),
-
                     _buildTextField(
                       controller: _phoneController,
                       hint: "Phone Number",
@@ -161,7 +151,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       validator: (val) => (val == null || val.length < 11) ? "Enter a valid phone number" : null,
                     ),
                     const SizedBox(height: 15),
-
                     _buildTextField(
                       controller: _ageController,
                       hint: "Father's Age",
@@ -174,7 +163,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       },
                     ),
                     const SizedBox(height: 15),
-
                     _buildTextField(
                       controller: _passwordController,
                       hint: "Password",
@@ -183,7 +171,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       validator: (val) => (val == null || val.length < 6) ? "Minimum 6 characters" : null,
                     ),
                     const SizedBox(height: 15),
-
                     _buildTextField(
                       controller: _confirmPasswordController,
                       hint: "Confirm Password",
@@ -194,9 +181,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         return null;
                       },
                     ),
-
                     const SizedBox(height: 40),
-
                     ElevatedButton(
                       onPressed: _isLoading ? null : _register,
                       style: ElevatedButton.styleFrom(
@@ -207,12 +192,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         elevation: 5,
                       ),
                       child: _isLoading
-                          ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Color(0xFF3A7BD5), strokeWidth: 2))
+                          ? const SizedBox(
+                        height: 20,
+                        width: 20,
+                        child: CircularProgressIndicator(color: Color(0xFF3A7BD5), strokeWidth: 2),
+                      )
                           : const Text("REGISTER", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                     ),
-
                     const SizedBox(height: 20),
-
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [

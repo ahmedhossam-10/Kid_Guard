@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 class VaccineCard extends StatelessWidget {
   final String vaccineName;
   final String date;
-  final String status; // Completed - Pending - Missed
+  final String status;
   final bool isTaken;
   final bool isOverdue;
   final VoidCallback? onTapIcon;
@@ -19,61 +19,86 @@ class VaccineCard extends StatelessWidget {
   });
 
   Color _getStatusColor() {
-    if (isTaken) return Colors.green.withOpacity(0.2);
-    if (isOverdue) return Colors.red.withOpacity(0.2);
-    if (status.toLowerCase() == "pending") return Colors.white;
+    if (isTaken) return Colors.green.withOpacity(0.15);
+    if (isOverdue) return Colors.red.withOpacity(0.15);
+    return Colors.white.withOpacity(0.9);
+  }
+
+  Color _getBorderColor() {
+    if (isTaken) return Colors.green.withOpacity(0.5);
+    if (isOverdue) return Colors.red.withOpacity(0.5);
     return Colors.grey.withOpacity(0.2);
-  }
-
-  Color _getIconColor() {
-    return isTaken ? Colors.green : Colors.grey;
-  }
-
-  IconData _getIconData() {
-    return isTaken ? Icons.check_circle : Icons.radio_button_unchecked;
   }
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 300),
       padding: const EdgeInsets.all(16),
       margin: const EdgeInsets.symmetric(vertical: 8),
       decoration: BoxDecoration(
         color: _getStatusColor(),
         borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: _getBorderColor(), width: 1.5),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          // اسم التطعيم + التاريخ + وقت المتبقي/Overdue
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                vaccineName,
-                style: const TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  vaccineName,
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: isTaken ? Colors.green[900] : Colors.black87,
+                  ),
                 ),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                date,
-                style: TextStyle(
-                  fontSize: 14,
-                  color: isOverdue ? Colors.red[700] : Colors.grey[800],
+                const SizedBox(height: 6),
+                Row(
+                  children: [
+                    Icon(
+                      Icons.calendar_today_outlined,
+                      size: 14,
+                      color: isOverdue ? Colors.red[700] : Colors.grey[600],
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      date,
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                        color: isOverdue ? Colors.red[700] : Colors.grey[700],
+                      ),
+                    ),
+                  ],
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
 
-          // أيقونة التفاعل
-          GestureDetector(
-            onTap: onTapIcon,
-            child: Icon(
-              _getIconData(),
-              color: _getIconColor(),
-              size: 28,
+          Material(
+            color: Colors.transparent,
+            child: InkWell(
+              borderRadius: BorderRadius.circular(50),
+              onTap: onTapIcon,
+              child: Padding(
+                padding: const EdgeInsets.all(8.0),
+                child: Icon(
+                  isTaken ? Icons.check_circle : Icons.radio_button_unchecked,
+                  color: isTaken ? Colors.green : (isOverdue ? Colors.red : Colors.grey),
+                  size: 30,
+                ),
+              ),
             ),
           ),
         ],

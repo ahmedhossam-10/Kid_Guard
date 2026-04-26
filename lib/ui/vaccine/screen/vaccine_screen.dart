@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import '../../../../services/api_service.dart';
 import '../../home/widget/vaccine_card.dart';
+import '../../home/widget/VaccinationModel.dart';
 
 class VaccinesScreen extends StatefulWidget {
   static const String routeName = 'vaccine';
@@ -11,62 +13,85 @@ class VaccinesScreen extends StatefulWidget {
 }
 
 class _VaccinesScreenState extends State<VaccinesScreen> {
+  final ApiService _apiService = ApiService();
+  List<VaccinationModel> allVaccines = [];
+  bool isLoading = true;
   String selectedFilter = "All";
 
-  // بيانات Fake للتطعيمات
-  final List<Map<String, dynamic>> vaccines = [
-    {
-      "name": "BCG",
-      "date": "2025-01-05",
-      "status": "Completed",
-    },
-    {
-      "name": "Polio",
-      "date": "2025-12-10",
-      "status": "Pending",
-    },
-    {
-      "name": "Measles",
-      "date": "2025-11-14",
-      "status": "Pending",
-    },
-    {
-      "name": "Hepatitis B",
-      "date": "2025-12-20",
-      "status": "Pending",
-    },
-  ];
-
-  List<Map<String, dynamic>> get filteredVaccines {
-    if (selectedFilter == "All") return vaccines;
-    return vaccines.where((v) => v["status"] == selectedFilter).toList();
+  @override
+  void initState() {
+    super.initState();
+    _loadData();
   }
 
-  void toggleVaccineStatus(int index) {
-    setState(() {
-      String currentStatus = vaccines[index]["status"];
-      if (currentStatus.toLowerCase() == "completed") {
-        vaccines[index]["status"] = "Pending";
+  Future<void> _loadData() async {
+    setState(() => isLoading = true);
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final String? token = prefs.getString('user_token');
+      final int? childId = prefs.getInt('selected_child_id');
+
+      if (token != null && childId != null) {
+        final data = await _apiService.fetchVaccinations(token, childId);
+        setState(() {
+          allVaccines = data;
+          isLoading = false;
+        });
       } else {
-        vaccines[index]["status"] = "Completed";
+        setState(() => isLoading = false);
       }
-    });
+    } catch (e) {
+      debugPrint("❌ Error loading vaccines: $e");
+      setState(() => isLoading = false);
+    }
   }
 
-  bool isOverdue(String dateStr) {
-    DateTime today = DateTime.now();
-    DateTime vaccineDate = DateFormat('yyyy-MM-dd').parse(dateStr);
-    return vaccineDate.isBefore(today);
+  List<VaccinationModel> get filteredVaccines {
+    if (selectedFilter == "All") return allVaccines;
+    if (selectedFilter == "Completed") {
+      return allVaccines.where((v) => v.isUsed).toList();
+    }
+    if (selectedFilter == "Pending") {
+      return allVaccines.where((v) => !v.isUsed && !v.isOverdue).toList();
+    }
+    if (selectedFilter == "Missed") {
+      return allVaccines.where((v) => v.isOverdue && !v.isUsed).toList();
+    }
+    return allVaccines;
   }
 
-  String getTimeLeft(String dateStr) {
-    DateTime today = DateTime.now();
-    DateTime vaccineDate = DateFormat('yyyy-MM-dd').parse(dateStr);
-    Duration diff = vaccineDate.difference(today);
+  Future<void> _toggleStatus(VaccinationModel vaccine) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final String? token = prefs.getString('user_token');
 
-    if (diff.inDays > 0) return "${diff.inDays} days left";
-    if (diff.inDays == 0) return "Today";
-    return "Overdue";
+      if (token != null) {
+        final bool newStatus = !vaccine.isUsed;
+
+        final response = await _apiService.updateVaccineStatus(token, vaccine.id, newStatus);
+
+        if (response.statusCode == 200) {
+          _loadData();
+
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(newStatus
+                  ? "Vaccine marked as Completed"
+                  : "Vaccine marked as Pending"),
+              backgroundColor: newStatus ? Colors.green : Colors.orange,
+              duration: const Duration(seconds: 2),
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      debugPrint("❌ Toggle Error: $e");
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Failed to update status")),
+      );
+    }
   }
 
   @override
@@ -76,16 +101,16 @@ class _VaccinesScreenState extends State<VaccinesScreen> {
       appBar: AppBar(
         title: const Text(
           "Vaccinations",
-          style: TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.bold,
-          ),
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
         ),
         backgroundColor: Colors.transparent,
         elevation: 0,
         centerTitle: true,
+        iconTheme: const IconThemeData(color: Colors.white),
       ),
       body: Container(
+        width: double.infinity,
+        height: double.infinity,
         decoration: const BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.bottomCenter,
@@ -96,26 +121,21 @@ class _VaccinesScreenState extends State<VaccinesScreen> {
         child: SafeArea(
           child: Column(
             children: [
-              // فلتر أعلى الشاشة
-              Container(
-                padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
                 child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceAround,
                   children: ["All", "Completed", "Pending", "Missed"].map((filter) {
                     bool isSelected = selectedFilter == filter;
                     return GestureDetector(
-                      onTap: () {
-                        setState(() {
-                          selectedFilter = filter;
-                        });
-                      },
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      onTap: () => setState(() => selectedFilter = filter),
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 200),
+                        margin: const EdgeInsets.symmetric(horizontal: 8),
+                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
                         decoration: BoxDecoration(
-                          color: isSelected
-                              ? Colors.white.withOpacity(0.9)
-                              : Colors.white.withOpacity(0.3),
-                          borderRadius: BorderRadius.circular(16),
+                          color: isSelected ? Colors.white : Colors.white.withOpacity(0.2),
+                          borderRadius: BorderRadius.circular(20),
                         ),
                         child: Text(
                           filter,
@@ -130,33 +150,53 @@ class _VaccinesScreenState extends State<VaccinesScreen> {
                 ),
               ),
 
-              const SizedBox(height: 12),
+              const SizedBox(height: 10),
 
-              // قائمة التطعيمات
               Expanded(
-                child: ListView.builder(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  itemCount: filteredVaccines.length,
-                  itemBuilder: (context, index) {
-                    final v = filteredVaccines[index];
-                    bool overdue = isOverdue(v["date"]!) && v["status"]!.toLowerCase() != "completed";
-                    String displayStatus = v["status"];
-                    if (overdue) displayStatus = "Missed";
-
-                    return VaccineCard(
-                      vaccineName: v["name"]!,
-                      date: "${v["date"]} - ${getTimeLeft(v["date"]!)}",
-                      status: displayStatus,
-                      isTaken: v["status"]!.toLowerCase() == "completed",
-                      isOverdue: overdue,
-                      onTapIcon: () => toggleVaccineStatus(index),
-                    );
-                  },
+                child: isLoading
+                    ? const Center(child: CircularProgressIndicator(color: Colors.white))
+                    : filteredVaccines.isEmpty
+                    ? _buildEmptyState()
+                    : RefreshIndicator(
+                  onRefresh: _loadData,
+                  child: ListView.builder(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    itemCount: filteredVaccines.length,
+                    itemBuilder: (context, index) {
+                      final v = filteredVaccines[index];
+                      return VaccineCard(
+                        vaccineName: v.vaccineNameEn,
+                        date: v.description,
+                        status: v.isUsed
+                            ? "Completed"
+                            : (v.isOverdue ? "Missed" : "Pending"),
+                        isTaken: v.isUsed,
+                        isOverdue: v.isOverdue && !v.isUsed,
+                        onTapIcon: () => _toggleStatus(v),
+                      );
+                    },
+                  ),
                 ),
               ),
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildEmptyState() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.verified_outlined, size: 80, color: Colors.white.withOpacity(0.4)),
+          const SizedBox(height: 16),
+          Text(
+            "No $selectedFilter vaccines found",
+            style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w500),
+          ),
+        ],
       ),
     );
   }

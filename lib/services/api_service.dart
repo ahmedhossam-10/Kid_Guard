@@ -1,5 +1,8 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
+import '../ui/home/widget/MedicalItem.dart';
+import '../ui/home/widget/food_model.dart';
+import '../ui/home/widget/VaccinationModel.dart';
 
 class ApiService {
   final Dio _dio;
@@ -13,7 +16,78 @@ class ApiService {
     ),
   );
 
-  // ================= Auth Methods =================
+  Options _getOptions(String? token) {
+    return Options(
+      headers: {
+        if (token != null) 'Authorization': 'Bearer ${token.trim()}',
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+      },
+    );
+  }
+
+  Future<List<FoodModel>> fetchFoodByCategory(String category) async {
+    try {
+      final response = await _dio.get(category);
+      if (response.statusCode == 200) {
+        List<dynamic> data = response.data;
+        return data.map((json) => FoodModel.fromJson(json)).toList();
+      }
+      return [];
+    } catch (e) {
+      debugPrint("Error fetching $category: $e");
+      return [];
+    }
+  }
+
+  Future<List<MedicalItem>> getMedicalHistory(int childId, String token) async {
+    try {
+      final response = await _dio.get(
+        'MedicalHistory/child-archive/$childId',
+        options: _getOptions(token),
+      );
+
+      if (response.statusCode == 200 && response.data != null) {
+        List<dynamic> data = response.data;
+        return data.map((json) => MedicalItem.fromJson(json)).toList();
+      }
+      return [];
+    } catch (e) {
+      debugPrint("Error fetching medical history: $e");
+      return [];
+    }
+  }
+
+  Future<List<VaccinationModel>> fetchVaccinations(String token, int childId) async {
+    try {
+      final response = await _dio.get(
+        'Children/$childId/vaccinations',
+        options: _getOptions(token),
+      );
+
+      if (response.statusCode == 200 && response.data != null) {
+        List<dynamic> data = response.data;
+        return data.map((json) => VaccinationModel.fromJson(json)).toList();
+      }
+      return [];
+    } catch (e) {
+      debugPrint("Error fetching vaccinations: $e");
+      return [];
+    }
+  }
+
+  Future<Response> updateVaccineStatus(String token, int vaccineId, bool isUsed) async {
+    try {
+      return await _dio.patch(
+        'Children/update-status/$vaccineId',
+        queryParameters: {'isUsed': isUsed},
+        options: _getOptions(token),
+      );
+    } catch (e) {
+      debugPrint("Error updating vaccine status: $e");
+      rethrow;
+    }
+  }
 
   Future<Response> login(String email, String password) async {
     try {
@@ -22,7 +96,6 @@ class ApiService {
         'Password': password,
       });
     } catch (e) {
-      debugPrint("Login Error: $e");
       rethrow;
     }
   }
@@ -43,33 +116,10 @@ class ApiService {
         'Age': int.tryParse(age) ?? 0,
       });
     } catch (e) {
-      debugPrint("Register Error: $e");
       rethrow;
     }
   }
 
-  // --- دالة تغيير رقم الهاتف (التعديل النهائي للـ Key والـ Method) ---
-  Future<Response> changePhoneNumber(String token, String newPhone) async {
-    try {
-      return await _dio.put(
-        'Auth/change-phone',
-        options: Options(
-          headers: {
-            'Authorization': 'Bearer ${token.trim()}',
-            'Accept': 'application/json',
-          },
-        ),
-        data: {
-          'newPhoneNumber': newPhone, // تم التعديل هنا ليطابق طلب السيرفر
-        },
-      );
-    } catch (e) {
-      debugPrint("Change Phone Error: $e");
-      rethrow;
-    }
-  }
-
-  // --- دالة تغيير كلمة المرور ---
   Future<Response> changePassword({
     required String token,
     required String oldPassword,
@@ -79,13 +129,7 @@ class ApiService {
     try {
       return await _dio.put(
         'Auth/change-password',
-        options: Options(
-          headers: {
-            'Authorization': 'Bearer ${token.trim()}',
-            'Accept': 'application/json',
-            'Content-Type': 'application/json',
-          },
-        ),
+        options: _getOptions(token),
         data: {
           'oldPassword': oldPassword,
           'newPassword': newPassword,
@@ -93,27 +137,26 @@ class ApiService {
         },
       );
     } catch (e) {
-      debugPrint("Change Password Error: $e");
       rethrow;
     }
   }
 
-  // ================= Children & Profile Methods =================
+  Future<Response> changePhoneNumber(String token, String newPhone) async {
+    try {
+      return await _dio.put(
+        'Auth/change-phone',
+        options: _getOptions(token),
+        data: {'newPhoneNumber': newPhone},
+      );
+    } catch (e) {
+      rethrow;
+    }
+  }
 
   Future<Response> getParentProfile(String token) async {
     try {
-      final String cleanToken = token.trim();
-      return await _dio.get(
-        'Children/my-children',
-        options: Options(
-          headers: {
-            'Authorization': 'Bearer $cleanToken',
-            'Accept': 'application/json',
-          },
-        ),
-      );
+      return await _dio.get('Children/my-children', options: _getOptions(token));
     } catch (e) {
-      debugPrint("Get Profile API Error: $e");
       rethrow;
     }
   }
@@ -125,49 +168,76 @@ class ApiService {
     required String gender,
   }) async {
     try {
-      final String cleanToken = token.trim();
-      String shortDate = birthDate.contains('T') ? birthDate.split('T')[0] : birthDate;
-
       return await _dio.post(
         'Children/add',
-        options: Options(
-          headers: {
-            'Authorization': 'Bearer $cleanToken',
-            'Content-Type': 'application/json',
-            'Accept': 'application/json',
-          },
-        ),
-        data: {
-          "fullName": name,
-          "dateOfBirth": shortDate,
-          "gender": gender,
-        },
+        options: _getOptions(token),
+        data: {"fullName": name, "dateOfBirth": birthDate, "gender": gender},
       );
     } catch (e) {
-      debugPrint("Add Child API Error: $e");
       rethrow;
     }
   }
 
   Future<Response> deleteChild(String token, int childId) async {
     try {
-      final String cleanToken = token.trim();
-      return await _dio.delete(
-        'Children/delete/$childId',
-        options: Options(
-          headers: {
-            'Authorization': 'Bearer $cleanToken',
-            'Accept': 'application/json',
-          },
-        ),
-      );
+      return await _dio.delete('Children/delete/$childId', options: _getOptions(token));
     } catch (e) {
-      debugPrint("Delete Child API Error: $e");
       rethrow;
     }
   }
 
-  // ================= AI Methods =================
+  Future<Response> getChildMedications(String token, int childId) async {
+    try {
+      return await _dio.get(
+        'Children/$childId/medications',
+        options: _getOptions(token),
+      );
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<Response> addMedication({
+    required String token,
+    required Map<String, dynamic> medicationData,
+  }) async {
+    try {
+      return await _dio.post(
+        'Medications/add',
+        options: _getOptions(token),
+        data: medicationData,
+      );
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<Response> updateMedication({
+    required String token,
+    required int medicationId,
+    required Map<String, dynamic> medicationData,
+  }) async {
+    try {
+      return await _dio.put(
+        'Medications/update/$medicationId',
+        options: _getOptions(token),
+        data: medicationData,
+      );
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<Response> deleteMedication(String token, int medicationId) async {
+    try {
+      return await _dio.delete(
+        'Medications/delete/$medicationId',
+        options: _getOptions(token),
+      );
+    } catch (e) {
+      rethrow;
+    }
+  }
 
   Future<Map<String, dynamic>> uploadAudioFile(String filePath) async {
     const String url = "https://mohammedelhakim-kidguard-crydetection-cryclassification.hf.space/predict";
@@ -185,7 +255,6 @@ class ApiService {
       });
       return response.data;
     } catch (e) {
-      debugPrint("Audio Upload Error: $e");
       rethrow;
     }
   }
@@ -196,8 +265,35 @@ class ApiService {
       final response = await _dio.post(url, data: {"message": message});
       return response.data['response'] ?? "No response from bot";
     } catch (e) {
-      debugPrint("Chatbot Error: $e");
-      return "I'm having trouble connecting to my brain right now!";
+      return "Connection error. Please try again later.";
+    }
+  }
+
+  Future<Response> addGrowthMeasurement({
+    required String token,
+    required int childId,
+    required double weight,
+    required double height,
+  }) async {
+    try {
+      return await _dio.post(
+        'Growth/$childId/add-measurement',
+        options: _getOptions(token),
+        data: {"weight": weight, "height": height},
+      );
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<Response> getGrowthHistory(String token, int childId) async {
+    try {
+      return await _dio.get(
+        'Growth/$childId/history',
+        options: _getOptions(token),
+      );
+    } catch (e) {
+      rethrow;
     }
   }
 }
