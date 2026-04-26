@@ -98,18 +98,65 @@ class _DailyMealSuggestionsScreenState extends State<DailyMealSuggestionsScreen>
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  // 1. نصيحة الطبيب (تظهر إذا وُجدت حتى لو القوائم فارغة)
                   if (_mealPlan!.advice.isNotEmpty)
                     _buildAdviceCard(_mealPlan!.advice),
+
                   if (_mealPlan!.advice.isNotEmpty)
                     const SizedBox(height: 15),
 
-                  _buildMealSection("Breakfast 🍳", _mealPlan!.breakfast),
-                  _buildMealSection("Lunch 🍲", _mealPlan!.lunch),
-                  _buildMealSection("Dinner 🌙", _mealPlan!.dinner),
+                  // 2. التحقق من أن جميع القوائم فارغة
+                  if (_mealPlan!.breakfast.isEmpty &&
+                      _mealPlan!.lunch.isEmpty &&
+                      _mealPlan!.dinner.isEmpty)
+                    _buildEmptyState()
+                  else ...[
+                    // 3. عرض الأقسام التي تحتوي على بيانات فقط
+                    _buildMealSection("Breakfast 🍳", _mealPlan!.breakfast),
+                    _buildMealSection("Lunch 🍲", _mealPlan!.lunch),
+                    _buildMealSection("Dinner 🌙", _mealPlan!.dinner),
+                  ],
                 ],
               ),
             ),
           ),
+        ),
+      ),
+    );
+  }
+
+  // ودجت الحالة الفارغة (Empty State)
+  Widget _buildEmptyState() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.only(top: 80),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+                Icons.no_meals_outlined,
+                color: Colors.white.withOpacity(0.6),
+                size: 100
+            ),
+            const SizedBox(height: 20),
+            const Text(
+              "No suggestions for today",
+              style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              "Keep following your healthy routine!\nPull down to refresh.",
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                  color: Colors.white.withOpacity(0.8),
+                  fontSize: 14
+              ),
+            ),
+          ],
         ),
       ),
     );
