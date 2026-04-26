@@ -1,5 +1,6 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
+import '../ui/DailyMealPlan/widget/DailyMealPlan.dart';
 import '../ui/home/widget/MedicalItem.dart';
 import '../ui/home/widget/food_model.dart';
 import '../ui/home/widget/VaccinationModel.dart';
@@ -26,6 +27,23 @@ class ApiService {
     );
   }
 
+
+  Future<DailyMealPlan?> getDailyMealSuggestions(int childId, String token) async {
+    try {
+      final response = await _dio.get(
+        'Nutrition/daily-meals/$childId',
+        options: _getOptions(token),
+      );
+      if (response.statusCode == 200 && response.data != null) {
+        return DailyMealPlan.fromJson(response.data);
+      }
+      return null;
+    } catch (e) {
+      debugPrint("Error fetching daily meal suggestions: $e");
+      return null;
+    }
+  }
+
   Future<List<FoodModel>> fetchFoodByCategory(String category) async {
     try {
       final response = await _dio.get(category);
@@ -39,6 +57,7 @@ class ApiService {
       return [];
     }
   }
+
 
   Future<List<MedicalItem>> getMedicalHistory(int childId, String token) async {
     try {
@@ -88,6 +107,7 @@ class ApiService {
       rethrow;
     }
   }
+
 
   Future<Response> login(String email, String password) async {
     try {

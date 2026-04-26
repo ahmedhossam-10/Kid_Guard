@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../../../DailyMealPlan/screen/DailyMealSuggestions.dart';
 import '../../widget/CartProvider.dart';
 import '../../widget/CartScreen.dart';
 import '../../widget/food_card.dart';
@@ -189,6 +190,16 @@ class RestaurantTab extends StatelessWidget {
           style: TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold),
         ),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.lightbulb_outline, color: Colors.amberAccent, size: 28),
+            tooltip: "Daily Suggestions",
+            onPressed: () {
+              Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const DailyMealSuggestionsScreen())
+              );
+            },
+          ),
           IconButton(
             icon: const Icon(Icons.history_outlined, color: Colors.white, size: 28),
             onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const GrowthHistoryScreen())),
